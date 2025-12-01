@@ -12,30 +12,32 @@ body {
     background: transparent; 
     color: #606F49;
     margin: 0;
-    padding: 10px 0;
+    padding: 0; /* plus de padding */
     display: flex;
     justify-content: center;
-    align-items: flex-start; 
-    min-height: 100vh;
+    align-items: center; /* centre verticalement sans créer d'espace */
+    height: auto; /* ne prend que ce qu'il faut */
 }
 
 .container {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    margin-top: 40px; 
+    align-items: center;
+    margin: 0; /* retire l'espace au-dessus et en-dessous */
+    padding: 0;
 }
 
 .card {
-    background: #f9f9f9;
-    /* Resserrement de la zone card */
-    padding: 20px; 
+    background: transparent;
+    padding: 10px 20px; /* réduit l’intérieur */
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(229, 5, 214, 0.05);
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: 0; /* empêche tout espace externe */
 }
+
 
 .card h2 {
     font-size: 16px;
