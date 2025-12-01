@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Pomodoro Timer Fluide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+body {
+    font-family: 'Courier Prime', sans-serif;
+    background: transparent; 
+    color: #606F49;
+    margin: 0;
+    padding: 10px 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; 
+    min-height: 100vh;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin-top: 40px; 
+}
+
+.card {
+    background: #f9f9f9;
+    /* Resserrement de la zone card */
+    padding: 20px; 
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(229, 5, 214, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    /* Resserrement de la zone card */
+    margin-bottom: 10px; 
+}
+
+.deadline-label {
+    font-style: italic;
+    font-size: 12px;
+    color: #C6C09C;
+    /* Resserrement de la zone card */
+    margin-bottom: 10px; 
+    text-align: center;
+}
+
+#timerContainer {
+    position: relative;
+    width: 240px;
+    height: 240px;
+}
+
+#timerCanvas {
+    transform: rotate(-90deg); 
+}
+
+#timeDisplay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 36px;
+    font-weight: 600;
+    color: #606F49;
+    z-index: 2;
+}
+
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    /* Resserrement de la zone card */
+    margin-top: 15px; 
+}
+
+button {
+    width: 60px;
+    height: 60px;
+    border: none;
+    border-radius: 50%;
+    background-color: #606F49;
+    color: #C6C09C;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+button:hover {
+    opacity: 0.8;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h2>❀ POMODORO TIMER ❀</h2>
+        <div class="deadline-label" id="pomodoroLabel">Prêt à démarrer</div>
+
+        <div id="timerContainer">
+            <canvas id="timerCanvas" width="240" height="240"></canvas>
+            <div id="timeDisplay">25:00</div>
+        </div>
+
+        <div class="button-row">
+            <button id="togglePomodoro">▶︎</button>
+            <button id="resetPomodoro">↺</button>
+            <button id="switchSession">25</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('timerCanvas');
+const ctx = canvas.getContext('2d');
+const timeDisplay = document.getElementById('timeDisplay');
+const pomodoroLabel = document.getElementById("pomodoroLabel");
+const toggleBtn = document.getElementById("togglePomodoro");
+const resetBtn = document.getElementById("resetPomodoro");
+const switchBtn = document.getElementById("switchSession");
+
+// Sessions possibles
+let sessionOptions = [1, 25, 50];
+let sessionIndex = 1;
+let focusMinutes = sessionOptions[sessionIndex];
+let breakMinutes = 5;
+
+let isBreak = false;
+let interval = null;
+let endTime = null;   // <-- référence absolue du moment de fin
+let running = false;  // <-- pour éviter les doublons
+
+/** Dessin de l'UI */
+function drawTimer() {
+    const total = (isBreak ? breakMinutes : focusMinutes) * 60;
+    const now = Math.max(0, (endTime - Date.now()) / 1000);
+    const percent = 1 - now / total;
+
+    const center = canvas.width / 2;
+    const radius = center - 15;
+    const innerMaxRadius = radius - (25 / 2);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const innerRadiusFill = innerMaxRadius * (1 - percent);
+
+    const innerGradient = ctx.createRadialGradient(center, center, 0, center, center, innerMaxRadius);
+    innerGradient.addColorStop(0, "rgba(198, 255, 180, 0.4)");
+    innerGradient.addColorStop(1, "rgba(96, 111, 73, 1.0)");
+
+    ctx.fillStyle = innerGradient;
+    ctx.beginPath();
+    ctx.arc(center, center, innerMaxRadius, 0, 2 * Math.PI);
+    ctx.arc(center, center, innerRadiusFill, 0, 2 * Math.PI, true);
+    ctx.fill("evenodd");
+}
+
+function updateTimeDisplay() {
+    const secondsLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    const min = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+    const sec = (secondsLeft % 60).toString().padStart(2, "0");
+    timeDisplay.textContent = `${min}:${sec}`;
+}
+
+function updateUI() {
+    drawTimer();
+    updateTimeDisplay();
+}
+
+/** Lance un cycle (focus ou break) */
+function startSession() {
+    const duration = (isBreak ? breakMinutes : focusMinutes) * 60 * 1000;
+    endTime = Date.now() + duration;
+
+    running = true;
+    interval = setInterval(tick, 200); // interval lent = OK, le calcul est précis
+
+    toggleBtn.textContent = "⏸︎";
+    pomodoroLabel.textContent = isBreak ? "❁ Relax ❁" : "❃ Concentration ❃";
+}
+
+/** Tick principal, utilisant Date.now() */
+function tick() {
+    updateUI();
+
+    if (Date.now() >= endTime) {
+        clearInterval(interval);
+        interval = null;
+        running = false;
+
+        // bascule
+        isBreak = !isBreak;
+        startSession(); // relance automatiquement
+    }
+}
+
+/** Play / Pause */
+function togglePomodoro() {
+    if (running) {
+        clearInterval(interval);
+        interval = null;
+        running = false;
+        toggleBtn.textContent = "▶︎";
+        pomodoroLabel.textContent = isBreak ? "❁ Pause en pause ❁" : "❀ Focus en pause ❀";
+    } else {
+        startSession();
+    }
+}
+
+/** Reset */
+function resetPomodoro() {
+    clearInterval(interval);
+    interval = null;
+    running = false;
+    isBreak = false;
+
+    endTime = Date.now() + focusMinutes * 60 * 1000;
+
+    toggleBtn.textContent = "▶︎";
+    pomodoroLabel.textContent = "Prêt à démarrer";
+
+    updateUI();
+}
+
+/** Changement de durée */
+switchBtn.addEventListener("click", () => {
+    if (running) togglePomodoro();
+
+    sessionIndex = (sessionIndex + 1) % sessionOptions.length;
+    focusMinutes = sessionOptions[sessionIndex];
+    switchBtn.textContent = focusMinutes;
+
+    resetPomodoro();
+});
+
+toggleBtn.addEventListener("click", togglePomodoro);
+resetBtn.addEventListener("click", resetPomodoro);
+
+// Affichage initial
+endTime = Date.now() + focusMinutes * 60 * 1000;
+updateUI();
+</script>
+
+</body>
+</html>
